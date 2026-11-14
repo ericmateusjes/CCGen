@@ -1,0 +1,7 @@
+{
+  "name": "ccgen",
+  "version": "1.0.0",
+  "description": "Concrete curves and damage variables for the Abaqus CDP model",
+  "license": "MIT",
+  "author": "Eric M. F. Bezerra, Jerfson M. Lima"
+}

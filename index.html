@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCGen – Concrete curves for Abaqus CDP</title>
+<meta name="description" content="Open-source generator of stress–strain curves and damage variables of concrete for the Abaqus Concrete Damaged Plasticity model.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo"><img src="assets/logo.svg" alt="CCGen – Concrete Curve Generator" height="44"></span><h1 class="sr">CCGen</h1><span class="sub">Concrete curves and damage variables for the Abaqus <em>Concrete Damaged Plasticity</em> model</span></div>
+  <div class="top-r"><span id="status" class="badge" role="status"></span>
+    <button id="warnBtn" class="icon warn" type="button" title="Warnings" aria-label="Warnings" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span id="warnCount" class="wc"></span></button>
+    <button id="gearBtn" class="icon" type="button" title="Settings: advanced options and output format" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    <button id="themeBtn" class="mini" type="button" title="Toggle light / dark theme">Theme</button></div>
+</header>
+
+<dialog id="warnDlg" aria-labelledby="warnTitle">
+  <div class="dlg-head"><h2 id="warnTitle">Warnings</h2><button id="warnClose" class="icon" type="button" title="Close" aria-label="Close">✕</button></div>
+  <p class="hint">These do not block the export, but they deserve attention.</p>
+  <ul id="warnList" class="checks"></ul>
+</dialog>
+
+<dialog id="settings" aria-labelledby="setTitle">
+  <div class="dlg-head"><h2 id="setTitle">Settings</h2><button id="setClose" class="icon" type="button" title="Close" aria-label="Close">✕</button></div>
+  <h3>Advanced options</h3>
+  <div id="adv"></div>
+  <h3>Output format</h3>
+  <div class="row"><label for="fSep">Separator ("Copy as text")</label><select id="fSep"><option value="comma">comma</option><option value="tab">tab</option><option value="space">space</option><option value="semicolon">semicolon</option></select></div>
+  <div class="row"><label for="fNot">Notation</label><select id="fNot"><option value="auto">automatic</option><option value="sci">scientific</option><option value="fixed">fixed</option></select></div>
+  <div class="row"><label for="fDig">Significant digits</label><input id="fDig" type="text" inputmode="numeric" value="6"></div>
+  <div class="row"><label for="fDec">Decimal mark ("Copy for Abaqus")</label><select id="fDec"><option value="point">point (1.5)</option><option value="comma">comma (1,5)</option></select></div>
+</dialog>
+
+
+<div class="layout">
+<aside class="side" id="side" aria-label="Inputs">
+  <details open><summary>1 · Material</summary>
+    <div class="row"><label for="fck">Characteristic strength f<sub>ck</sub> (MPa)</label><input id="fck" type="text" inputmode="decimal" value="30"></div>
+    <div class="row"><label for="method">Properties from</label><select id="method"></select></div>
+    <div class="row"><label for="agg">Aggregate (α<sub>E</sub>)</label><select id="agg"></select></div>
+    <table class="props" id="propsTable"><thead><tr><th>Property</th><th>Auto</th><th>Value</th></tr></thead><tbody></tbody></table>
+    <p class="hint" id="derived"></p>
+  </details>
+  <details open><summary>2 · Finite element size</summary>
+    <div class="row"><label for="leq">Characteristic length l<sub>eq</sub> (mm)</label><input id="leq" type="text" inputmode="decimal" value="30"></div>
+    <details class="nested"><summary>l<sub>eq</sub> calculator (solid elements)</summary>
+      <div class="row3"><input id="la" placeholder="a (mm)" type="text" inputmode="decimal"><input id="lb" placeholder="b (mm)" type="text" inputmode="decimal"><input id="lc" placeholder="c (mm)" type="text" inputmode="decimal"></div>
+      <button type="button" class="mini" id="leqCub">Use cuboid: min(a, b, c)</button>
+      <div class="row3"><input id="lV" placeholder="V (mm³)" type="text" inputmode="decimal"><input id="lA" placeholder="Amax (mm²)" type="text" inputmode="decimal"></div>
+      <button type="button" class="mini" id="leqVA">Use V / A<sub>max</sub></button>
+      <p class="hint">l<sub>eq</sub> = V / A<sub>max</sub> for 3D solids. Shell and plane elements are not covered: enter the value manually.</p>
+    </details>
+  </details>
+  <details open><summary>3 · Models</summary>
+    <div class="row"><label for="compModel">Compression curve</label><select id="compModel"></select></div>
+    <div class="row" id="extRow"><label for="extend">Extend beyond ε<sub>cu1</sub></label><input id="extend" type="checkbox" checked title="NBR 6118, fib MC2010 (2012) and Eurocode 2 end at ε_cu1 (or ε_c,lim); Abaqus would hold the last stress constant beyond it. The curve is continued with the descending branch of CEB-FIP MC1990 (dashed in the plots)."></div>
+    <div class="row"><label for="compDamage">Compression damage</label><select id="compDamage"></select></div>
+    <div class="row"><label for="tensModel">Tension curve</label><select id="tensModel"></select></div>
+    <div class="row"><label for="tensDamage">Tension damage</label><select id="tensDamage"></select></div>
+  </details>
+  <p class="foot">CCGen <span id="ver"></span></p>
+</aside>
+
+<main>
+  <div id="banner" aria-live="polite"></div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="curves" class="on">Curves</button>
+    <button role="tab" data-tab="tables">Tables</button>
+    <button role="tab" data-tab="exp">Experimental</button>
+    <button role="tab" data-tab="checks">Checks <span id="chkCount" class="pill"></span></button>
+    <button role="tab" data-tab="cmp">Compare</button>
+    <button role="tab" data-tab="mesh">Mesh sensitivity</button>
+    <button role="tab" data-tab="export">Abaqus export</button>
+    <button role="tab" data-tab="docs">Documentation</button>
+    <button role="tab" data-tab="about">About</button>
+  </nav>
+
+  <section id="tab-curves" class="tab on">
+    <p class="hint">Hover over a curve to read its values and to see the unloading branch of slope (1 − d)·E<sub>0</sub>, which ends at the plastic strain ε<sup>pl</sup>.</p>
+    <h2>Compression</h2>
+    <p id="limNote" class="hint"></p>
+    <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+    <h2>Tension</h2>
+    <div class="grid2"><div id="t1"></div><div id="t2"></div></div>
+  </section>
+
+  <section id="tab-tables" class="tab">
+    <div class="toolbar"><button id="csvAll" class="btn" type="button">Export data (CSV)</button><span class="hint">Column order follows Abaqus; the first row is the elastic limit and the origin is omitted. The CSV file has the four tables side by side and opens directly in Excel (decimal mark and notation from Settings ⚙). <b>Copy as text</b> uses the separator chosen in Settings; <b>Copy for Abaqus</b> uses tabs, so each value lands in its own cell of the Abaqus/CAE table (and of Excel); the ⧉ button in a column header copies that column only.</span></div>
+    <div class="toolbar tbopts"><span class="opt"><label for="fUnit">Output units</label><select id="fUnit"></select></span><span class="opt"><label for="tTens">Tension data as</label><select id="tTens"><option value="strain">cracking strain</option><option value="displacement">crack opening</option></select></span></div>
+    <div id="tables" class="grid2"></div>
+  </section>
+
+  <section id="tab-exp" class="tab">
+    <p class="hint">Paste or load experimental curves (two columns, copied from Excel, CSV or text; tab, semicolon, space or comma separated; decimal comma accepted; a header line is ignored). Strains are dimensionless, stresses in MPa and crack openings in mm, compression positive. The points are always drawn over the model curves in the Curves tab. To <b>use</b> them, select <i>Experimental data</i> in the compression and/or tension curve lists (Models). The elastic limit (ε<sub>c0</sub>, f<sub>c0</sub>) and ε<sub>t0</sub> come from the properties; compression points below ε<sub>c0</sub> are replaced by the linear branch, and the tension curve starts at its peak. Enter the measured f<sub>cm</sub> and f<sub>tm</sub> as manual values so that E<sub>0</sub>, G<sub>ch</sub> and G<sub>F</sub> are consistent with the data.</p>
+    <div class="grid2">
+      <div class="card"><h3>Compression</h3>
+        <div class="row"><label for="xcKind">First column</label><select id="xcKind"><option value="total">total strain ε<sub>c</sub></option><option value="inelastic">crushing strain ε<sub>c</sub><sup>ch</sup></option></select></div>
+        <textarea id="xcText" rows="14" spellcheck="false" placeholder="strain&#9;stress (MPa)&#10;0.0005&#9;12.4&#10;0.0010&#9;22.1&#10;…"></textarea>
+        <div class="btns"><label class="btn file">Load file…<input id="xcFile" type="file" accept=".csv,.txt,.tsv,text/plain,text/csv" hidden></label><button id="xcClr" class="mini" type="button">Clear</button></div>
+        <p class="hint" id="xcInfo"></p></div>
+      <div class="card"><h3>Tension</h3>
+        <div class="row"><label for="xtKind">First column</label><select id="xtKind"><option value="opening">crack opening w (mm)</option><option value="total">total strain ε<sub>t</sub></option><option value="cracking">cracking strain ε<sub>t</sub><sup>ck</sup></option></select></div>
+        <textarea id="xtText" rows="14" spellcheck="false" placeholder="w (mm)&#9;stress (MPa)&#10;0&#9;2.9&#10;0.02&#9;1.8&#10;…"></textarea>
+        <div class="btns"><label class="btn file">Load file…<input id="xtFile" type="file" accept=".csv,.txt,.tsv,text/plain,text/csv" hidden></label><button id="xtClr" class="mini" type="button">Clear</button></div>
+        <p class="hint" id="xtInfo"></p></div>
+    </div>
+  </section>
+
+  <section id="tab-checks" class="tab"><ul id="checks" class="checks"></ul></section>
+
+  <section id="tab-cmp" class="tab">
+    <div class="toolbar"><button id="snap" class="btn" type="button">Save current configuration as snapshot</button><button id="snapClr" class="mini" type="button">Remove all</button><span class="hint">Snapshots are overlaid on the charts below; the current configuration is the thick line.</span></div>
+    <ul id="snapList" class="snaps"></ul>
+    <div class="grid2"><div id="m1"></div><div id="m2"></div><div id="m3"></div><div id="m4"></div></div>
+  </section>
+
+  <section id="tab-mesh" class="tab">
+    <p class="hint">Re-runs the current configuration for several characteristic lengths. The energy ratios compare the area under the curve times l<sub>eq</sub> with G<sub>ch</sub> (compression) and G<sub>F</sub> (tension); values far from 1 mean the curve was truncated or the model does not conserve energy (≈ 0.95 for Krätzig–Pölling, which is built to dissipate 95 % of G<sub>ch</sub>).</p>
+    <div class="toolbar"><label for="meshList">l<sub>eq</sub> list (mm)</label><input id="meshList" type="text" value="10, 20, 50, 100, 150, 200"><button id="meshRun" class="btn" type="button">Run</button><button id="meshWin" class="mini" type="button">Find feasible l<sub>eq</sub> window</button></div>
+    <p id="meshWinOut" class="hint"></p>
+    <div class="scroll"><table class="data" id="meshTable"></table></div>
+  </section>
+
+  <section id="tab-export" class="tab">
+    <div class="grid2">
+      <div class="card"><h3>Abaqus material block (.inp)</h3>
+        <div class="row"><label for="eName">Material name</label><input id="eName" type="text" value="CONCRETE"></div>
+        <div class="row"><label for="eNu">Poisson's ratio ν</label><input id="eNu" type="text" value="0.2"></div>
+        <div class="row"><label for="eRho">Density (optional, consistent units)</label><input id="eRho" type="text" placeholder="e.g. 2.4e-9 for N, mm"></div>
+        <div class="row"><label for="ePreset">CDP parameter set</label><select id="ePreset"></select></div>
+        <div class="row3"><label>ψ (°)<input id="ePsi" type="text"></label><label>ε (ecc.)<input id="eEcc" type="text"></label><label>fb0/fc0<input id="eFb" type="text"></label></div>
+        <div class="row3"><label>Kc<input id="eK" type="text"></label><label>Viscosity<input id="eVis" type="text"></label><span></span></div>
+        <div class="row"><label for="eTens">Tension data as</label><select id="eTens"><option value="strain">cracking strain</option><option value="displacement">crack opening</option></select></div>
+        <p class="hint">The dilation angle is not given a default by Abaqus; the value shown is a typical one and must be calibrated. Check the keywords against your Abaqus version.</p>
+      </div>
+      <div class="card"><h3>Preview</h3>
+        <textarea id="eOut" rows="20" readonly spellcheck="false"></textarea>
+        <div class="btns"><button id="eCopy" class="btn" type="button">Copy</button><button id="eDown" class="btn" type="button">Download .inp</button></div>
+        <h3>Configuration</h3>
+        <div class="btns"><button id="cfgSave" class="btn" type="button">Save configuration (.json)</button><label class="btn file">Load configuration<input id="cfgLoad" type="file" accept=".json,application/json" hidden></label></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-docs" class="tab docs">
+    <div class="docwrap"><article id="docBody" class="docbody"></article><nav id="docNav" class="docnav" aria-label="Documentation contents"></nav></div>
+  </section>
+
+  <section id="tab-about" class="tab about">
+    <h2>About CCGen</h2>
+    <p>CCGen is a tool for generating concrete constitutive data for the Abaqus <em>Concrete Damaged Plasticity</em> (CDP) model. The software generates the compression hardening, compression damage, tension stiffening and tension damage tables.</p>
+    <p>All calculations are performed locally in the browser. No data is sent to a server.</p>
+    <h3>Conventions</h3>
+    <ul>
+      <li>Unit system: N, mm and MPa. Compressive stresses and strains are taken as positive.</li>
+      <li>Compression: the tables are expressed in terms of stress and crushing strain ε<sub>c</sub><sup>ch</sup> (inelastic strain), the latter calculated from the total strain and the stress.</li>
+      <li>Tension: the tables are expressed in terms of stress and cracking strain. When the constitutive law is defined as a function of crack opening, it is converted to strain using the adopted characteristic length.</li>
+      <li>Modulus of elasticity: E<sub>0</sub> is the initial elastic modulus used in the strain conversions, according to the selected formulation.</li>
+      <li>Damage: the values are limited to d<sub>max</sub> (0.99 by default), which avoids unit values.</li>
+    </ul>
+    <h3>Checks</h3>
+    <p>The generated data are submitted to automatic consistency checks, including stress and strain limits, monotonicity of the strains, admissible damage values, non-negative and non-decreasing plastic strain and energy consistency, when applicable. The inconsistencies found are shown in the Checks tab and may prevent the export of the data.</p>
+    <h3>Limitations and caveats</h3>
+    <ul>
+      <li>Some damage formulations are compatible only with specific constitutive laws. Incompatible combinations are identified by alerts or by export blocking.</li>
+      <li>The mechanical properties estimated from codes and empirical relations are approximations and must be used considering their respective hypotheses and limitations.</li>
+      <li>The fracture energies and characteristic lengths used in the regularization may influence the post-peak response. The mesh sensitivity must be evaluated by the user.</li>
+      <li>CCGen generates the uniaxial material data but does not determine all the parameters required by the CDP model. The remaining parameters must be defined by the user.</li>
+      <li>The automatic checks evaluate the consistency of the generated data, but do not guarantee the physical representativeness of the curves or the convergence of numerical analyses.</li>
+    </ul>
+    <p>CCGen is a tool to support numerical modelling. It does not replace the experimental characterization of the materials, the validation of the constitutive laws or the verification of the results obtained in Abaqus. The full equations and procedures are in the Documentation tab.</p>
+  </section>
+</main>
+</div>
+
+<script src="src/core/util.js"></script>
+<script src="src/core/properties.js"></script>
+<script src="src/core/damage.js"></script>
+<script src="src/core/compression.js"></script>
+<script src="src/core/tension.js"></script>
+<script src="src/core/checks.js"></script>
+<script src="src/core/pipeline.js"></script>
+<script src="src/core/exporter.js"></script>
+<script src="src/core/tools.js"></script>
+<script src="src/ui/plot.js"></script>
+<script src="src/ui/tex.js"></script>
+<script src="src/ui/docs.js"></script>
+<script src="src/ui/app.js"></script>
+</body>
+</html>
