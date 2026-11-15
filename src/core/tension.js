@@ -7,7 +7,7 @@
     lin: 'Hillerborg et al. (1976), linear',
     fib: 'fib MC2010 (2012), bilinear',
     cor: 'Cornelissen et al. (1986), exponential',
-    gb: 'GB 50010 (2010, Annex C.2)',
+    gb: 'GB 50010 (2010)',
     exp: 'Experimental data (Experimental tab)'
   };
   T.DEFAULTS = { Nt: 50, sigmaLim: 0.05 };

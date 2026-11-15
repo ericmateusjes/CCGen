@@ -12,7 +12,7 @@
     nbr: 'NBR 6118 (2023)',
     fibmc: 'fib MC2010 (2012)',
     ec2: 'Eurocode 2 (EN 1992-1-1:2023)',
-    gb: 'GB 50010 (2010, Annex C.2)',
+    gb: 'GB 50010 (2010)',
     exp: 'Experimental data (Experimental tab)'
   };
   C.DEFAULTS = { Na: 14, Nd: 34, epsMax: 0.02, sigmaLim: 0.05, hogEu: 0.0038, hogEcm: null, kraMode: 'plastic', kraEcm: null, alfRounded: false,
